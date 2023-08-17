@@ -1,14 +1,14 @@
 <?php
 
-function my_scripts() {
+function c4b_scripts() {
     wp_enqueue_style( 'style', get_stylesheet_uri() );
 }
 
-add_action( 'wp_enqueue_scripts', 'my_scripts' );
+add_action( 'wp_enqueue_scripts', 'c4b_scripts' );
 
-add_action( 'init', 'create_dishes_type_taxonomies' );
+add_action( 'init', 'c4b_register_taxonomies' );
 
-function create_dishes_type_taxonomies(){
+function c4b_register_taxonomies(){
   register_taxonomy( 'type', array('dishes'), array(
     'hierarchical'  => true,
     'labels'        => array(
@@ -24,16 +24,12 @@ function create_dishes_type_taxonomies(){
       'new_item_name'     => 'Add new type name',
       'menu_name'         => 'Types',
     ),
-    'rewrite'       => array( 'slug' => 'dishess' ), //array( 'slug' => 'dishes' ) type
+    'rewrite'       => array( 'slug' => 'dishess' ),
         'has_archive'   => true,
     'show_ui'       => true,
     'query_var'     => true,
   ) );
-}
 
-add_action( 'init', 'create_dishes_difficulty_taxonomies' );
-
-function create_dishes_difficulty_taxonomies(){
   register_taxonomy( 'difficulty', array('dishes'), array(
     'hierarchical'  => true,
     'labels'        => array(
@@ -49,16 +45,16 @@ function create_dishes_difficulty_taxonomies(){
       'new_item_name'     => 'Add new difficulty name',
       'menu_name'         => 'Difficulty',
     ),
-    'rewrite'       => false, //array( 'slug' => 'dishes' ) difficulty
+    'rewrite'       => false,
         'has_archive'   => true,
     'show_ui'       => true,
     'query_var'     => true,
   ) );
 }
 
-add_action( 'init', 'register_post_types' );
+add_action( 'init', 'c4b_register_post_types' );
 
-function register_post_types(){
+function c4b_register_post_types(){
 
   register_post_type( 'dishes', [
     'label'  => 'Dishes',
@@ -84,7 +80,7 @@ function register_post_types(){
     'menu_position'       => null,
     'menu_icon'           => null,
     'hierarchical'        => false,
-    'supports'            => [ 'title', 'editor', 'thumbnail' ], // 'title','editor','author','thumbnail','excerpt','trackbacks','custom-fields','comments','revisions','page-attributes','post-formats'
+    'supports'            => [ 'title', 'editor', 'thumbnail' ],
     'taxonomies'          => [],
     'has_archive'         => true,
     'rewrite'             => true,
@@ -93,9 +89,9 @@ function register_post_types(){
 
 }
 
-add_shortcode( 'dishes_filter', 'dishes_filter_shortcode' );
+add_shortcode( 'dishes_filter', 'c4b_dishes_filter_shortcode' );
 
-function dishes_filter_shortcode( $atts ){
+function c4b_dishes_filter_shortcode( $atts ){
     $dishes_types = get_terms( [
         'taxonomy' => 'type',
         'hide_empty' => false,
@@ -124,7 +120,7 @@ function dishes_filter_shortcode( $atts ){
                     Difficulty :
                     <?php foreach( $dishes_difficulty as $item ) : ?>
                         <label class="difficulty-form__label">
-                            <input type="checkbox" name="difficulty[]" class="difficulty-form__checkbox" value="<?=$item->slug ?>" <?php checkbox_checked( $item->slug ); ?>>
+                            <input type="checkbox" name="difficulty[]" class="difficulty-form__checkbox" value="<?=$item->slug ?>" <?php isset( $_GET['difficulty'] ) ? checked( in_array( $item->slug, $_GET['difficulty'] ) ) : null ?>>
                             <?=$item->name ?>
                         </label>
                     <?php endforeach; ?>
@@ -138,12 +134,15 @@ function dishes_filter_shortcode( $atts ){
 	return ob_get_clean();
 }
 
-function checkbox_checked( $slug ){
-  if( isset( $_GET['difficulty'] ) ){
-    if( in_array( $slug, $_GET['difficulty'] ) ){
-      echo 'checked';
-    }
-  }
-}
+// add_action( 'pre_get_posts', 'test_args_query' );
+
+// function test_args_query( $query ){
+//   if( is_admin() || ! $query->is_main_query() )
+// 	  return;
+
+//   if( $query->is_post_type_archive( 'dishes' ) ){
+//       $query->set( 'posts_per_page', 3 );
+//   }
+// }
 
 ?>
