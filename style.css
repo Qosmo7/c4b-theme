@@ -1,0 +1,43 @@
+/**
+ * Theme Name:  C4B
+ * Description: Custom wordpress theme
+ * 
+ * Theme URI:   https://github.com/Qosmo7
+ * Author:      Qosmo
+ * Author URI:  https://github.com/Qosmo7
+ *
+ * License:     GNU General Public License v2 or later
+ * License URI: http://www.gnu.org/licenses/gpl-2.0.html
+ *
+ * Version:     1.0
+ */
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.posts-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    margin: 25px;
+}
+
+.post {
+    width: fit-content;
+    padding: 0 15px 10px;
+    border: 1px solid #000;
+}
+
+.post:not(:last-child) {
+    margin-bottom: 10px;
+}
+
+.types__item:not(:last-child) {
+    margin-right: 10px;
+}
+
+.difficulty-form__fieldset {
+    margin: 20px 0;
+}
