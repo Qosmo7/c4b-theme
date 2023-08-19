@@ -1,10 +1,21 @@
 <?php
 
+add_action( 'wp_enqueue_scripts', 'c4b_scripts' );
+
 function c4b_scripts() {
     wp_enqueue_style( 'style', get_stylesheet_uri() );
+    wp_enqueue_script( 'c4b-script', get_template_directory_uri() . '/js/c4b-script.js');
 }
 
-add_action( 'wp_enqueue_scripts', 'c4b_scripts' );
+add_action( 'wp_enqueue_scripts', 'c4b_ajax_data', 99 );
+
+function c4b_ajax_data(){
+  wp_localize_script( 'c4b-script', 'c4b_ajax',
+    array(
+      'url' => admin_url('admin-ajax.php')
+    )
+  );
+}
 
 add_action( 'init', 'c4b_register_taxonomies' );
 
@@ -134,15 +145,56 @@ function c4b_dishes_filter_shortcode( $atts ){
 	return ob_get_clean();
 }
 
-// add_action( 'pre_get_posts', 'test_args_query' );
+add_action( 'wp_ajax_c4b_filtering', 'c4b_filtering_callback' );
+add_action( 'wp_ajax_nopriv_c4b_filtering', 'c4b_filtering_callback' );
 
-// function test_args_query( $query ){
-//   if( is_admin() || ! $query->is_main_query() )
-// 	  return;
+function c4b_filtering_callback(){
+  $args = array(
+    'post_type'      => 'dishes',
+    'posts_per_page' => -1,
+  );
 
-//   if( $query->is_post_type_archive( 'dishes' ) ){
-//       $query->set( 'posts_per_page', 3 );
-//   }
-// }
+  if( isset( $_POST['difficulty'] ) ){
+    $args['tax_query'] = array(
+      array(
+        'taxonomy' => 'difficulty',
+        'field'    => 'slug',
+        'terms'    => $_POST['difficulty']
+      )
+    );
+  }
+
+  $query = new WP_Query( $args );
+
+  if( $query->have_posts() ){
+    while( $query->have_posts() ){
+      $query->the_post();
+      ?>
+      <div class="post">
+        <h2>
+            <a href="<?=get_permalink( $post->ID ) ?>"><?php the_title(); ?></a>
+        </h2>
+
+        <?php if( has_post_thumbnail() ) : ?>
+            <img src="<?= the_post_thumbnail_url() ?>" alt="post image">
+        <?php endif; ?>
+
+        <?php the_content(); ?>
+
+        <?php $post_taxonomies = get_post_taxonomies(); ?>
+
+        <?php $post_terms = get_the_terms( $post->ID, $post_taxonomies ); ?>
+        <?php if( is_array( $post_terms ) ) : ?>
+            <?php foreach( $post_terms as $term ) : ?>
+                <?='<p>' . $term->taxonomy . ' : ' . $term->name . '</p>' ?>
+            <?php endforeach; ?>
+        <?php endif; ?>
+      </div>
+      <?php
+    }
+  }
+
+  wp_die();
+}
 
 ?>
