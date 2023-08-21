@@ -7,12 +7,15 @@ function c4b_scripts() {
     wp_enqueue_script( 'c4b-script', get_template_directory_uri() . '/js/c4b-script.js');
 }
 
-add_action( 'wp_enqueue_scripts', 'c4b_ajax_data', 99 );
+add_action( 'wp_enqueue_scripts', 'c4b_localize_data', 99 );
 
-function c4b_ajax_data(){
-  wp_localize_script( 'c4b-script', 'c4b_ajax',
+function c4b_localize_data(){
+  $queried_object = get_queried_object();
+
+  wp_localize_script( 'c4b-script', 'c4b_localize_data',
     array(
-      'url' => admin_url('admin-ajax.php')
+      'url'   => admin_url('admin-ajax.php'),
+      'query' => wp_json_encode( $queried_object )
     )
   );
 }
@@ -103,15 +106,15 @@ function c4b_register_post_types(){
 add_shortcode( 'dishes_filter', 'c4b_dishes_filter_shortcode' );
 
 function c4b_dishes_filter_shortcode( $atts ){
-    $dishes_types = get_terms( [
-        'taxonomy' => 'type',
-        'hide_empty' => false,
-    ] );
+    $dishes_types = get_terms( array(
+      'taxonomy' => 'type',
+      'hide_empty' => false,
+    ) );
 
-    $dishes_difficulty = get_terms( [
-        'taxonomy' => 'difficulty',
-        'hide_empty' => false,
-    ] );
+    $dishes_difficulty = get_terms( array(
+      'taxonomy' => 'difficulty',
+      'hide_empty' => false,
+    ) );
 
     ob_start();
 
@@ -164,6 +167,20 @@ function c4b_filtering_callback(){
     );
   }
 
+  if( isset( $_POST['taxonomy'] ) && isset( $_POST['difficulty'] ) ){
+    array_push(
+      $args['tax_query'],
+      array(
+        'relation'   => 'AND'
+      ),
+      array(
+        'taxonomy' => $_POST['taxonomy'],
+        'field'    => 'slug',
+        'terms'    => $_POST['term_name']
+      )
+    );
+  }
+
   $query = new WP_Query( $args );
 
   if( $query->have_posts() ){
@@ -196,5 +213,7 @@ function c4b_filtering_callback(){
 
   wp_die();
 }
+
+// http://cooking4beginners/dishes/?difficulty%5B%5D=simple
 
 ?>
