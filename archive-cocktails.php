@@ -1,9 +1,11 @@
 <?php 
 get_header();
 
-echo term_description();
+echo do_shortcode( '[taxonomies_links post_type="cocktails" taxonomy="alcohol"]' );
 
-if ( have_posts() ) { ?>
+echo do_shortcode( '[taxonomies_filter post_type="cocktails" taxonomy="country"]' );
+
+if ( have_posts() ) { ?> 
     <div class="posts-wrap">
         <?php while ( have_posts() ) {
             the_post();

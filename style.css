@@ -25,7 +25,7 @@ body {
 }
 
 .post {
-    width: fit-content;
+    width: 30%;
     padding: 0 15px 10px;
     border: 1px solid #000;
 }
@@ -34,10 +34,15 @@ body {
     margin-bottom: 10px;
 }
 
-.types__item:not(:last-child) {
+.post img {
+    max-width: 300px;
+    height: auto;
+}
+
+.taxonomies-links__item:not(:last-child) {
     margin-right: 10px;
 }
 
-.difficulty-form__fieldset {
+.filtering-form__fieldset {
     margin: 20px 0;
 }

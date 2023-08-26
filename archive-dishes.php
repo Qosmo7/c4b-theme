@@ -1,7 +1,9 @@
 <?php 
 get_header();
 
-echo do_shortcode( '[dishes_filter]' );
+echo do_shortcode( '[taxonomies_links post_type="dishes" taxonomy="type"]' );
+
+echo do_shortcode( '[taxonomies_filter post_type="dishes" taxonomy="difficulty"]' );
 
 if ( have_posts() ) { ?> 
     <div class="posts-wrap">

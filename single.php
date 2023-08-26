@@ -19,4 +19,4 @@ while ( have_posts() ) :
 
 endwhile;
 
-get_footer(); ?>
+get_footer();
