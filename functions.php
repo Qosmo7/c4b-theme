@@ -179,8 +179,10 @@ add_action( 'init', 'c4b_register_post_types' );
 function c4b_taxonomies_filter_shortcode( $atts ){
 	$atts = shortcode_atts(
 		array(
-			'post_type' => 'post',
-			'taxonomy'  => '',
+			'post_type'       => 'post',
+			'taxonomy'        => '',
+			'selector'        => '',
+			'number_of_posts' => '',
 		),
 		$atts
 	);
@@ -203,7 +205,7 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 	?> 
 	<div class="filter">
 		<div class="filter__col">
-			<form class="form filtering-form" method="get">
+			<form class="form filtering-form" method="get" <?php if( ! empty( $atts['selector'] ) ){ echo 'data-selector="' . htmlspecialchars( $atts['selector'] ) . '"'; } ?>>
 				<fieldset class="filtering-form__fieldset">
 					<b><?=$taxonomy ?></b> :
 					<?php foreach( $taxonomy_terms as $term ) : ?>
@@ -220,7 +222,11 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 							<?=$term->name ?>
 						</label>
 					<?php endforeach; ?>
+
 					<input type="hidden" name="tax_name" value="<?=$taxonomy ?>">
+					<?php if( ! empty( $atts['number_of_posts'] ) ) : ?>
+						<input type="hidden" name="number_of_posts" value="<?=$atts['number_of_posts'] ?>">
+					<?php endif; ?>
 				</fieldset>
 				<button type="submit">Go</button>
 			</form>
@@ -284,6 +290,10 @@ function c4b_filtering_callback(){
 		);
 	}
 
+	if( ! empty( $_POST['number_of_posts'] ) ){
+		$query_vars['posts_per_page'] = $_POST['number_of_posts'];
+	}
+
 	$query = new WP_Query( $query_vars );
 
 	if( $query->have_posts() ){
@@ -292,7 +302,7 @@ function c4b_filtering_callback(){
 			?>
 			<div class="post">
 				<h2>
-					<a href="<?=get_permalink( $post->ID ) ?>"><?php the_title(); ?></a>
+					<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
 				</h2>
 
 				<?php if( has_post_thumbnail() ) : ?>
@@ -306,7 +316,7 @@ function c4b_filtering_callback(){
 				<?php $post_terms = get_the_terms( $post->ID, $post_taxonomies ); ?>
 				<?php if( is_array( $post_terms ) ) : ?>
 					<?php foreach( $post_terms as $term ) : ?>
-						<?='<p>' . $term->taxonomy . ' : ' . $term->name . '</p>' ?>
+						<p><?=$term->taxonomy . ' : ' . $term->name ?></p>
 					<?php endforeach; ?>
 				<?php endif; ?>
 			</div>
@@ -319,5 +329,88 @@ function c4b_filtering_callback(){
 
 add_action( 'wp_ajax_c4b_filtering', 'c4b_filtering_callback' );
 add_action( 'wp_ajax_nopriv_c4b_filtering', 'c4b_filtering_callback' );
+
+function loadmore_callback(){
+	$query_vars = json_decode( stripcslashes( $_POST['query_vars'] ), true );
+
+	$paged = ! empty( $_POST['paged'] ) ? $_POST['paged'] : 1;
+	$paged++;
+
+	$query_vars['paged'] = $paged;
+
+	$query = new WP_Query( $query_vars );
+
+	if( $query->have_posts() ){
+		while( $query->have_posts() ){
+			$query->the_post();
+			?>
+			<div class="post">
+				<h2>
+					<a href="<?php the_permalink(); ?>"><?php the_title(); ?></a>
+				</h2>
+
+				<?php if( has_post_thumbnail() ) : ?>
+					<img src="<?= the_post_thumbnail_url() ?>" alt="post image">
+				<?php endif; ?>
+
+				<?php the_content(); ?>
+
+				<?php $post_taxonomies = get_post_taxonomies(); ?>
+
+				<?php $post_terms = get_the_terms( $post->ID, $post_taxonomies ); ?>
+				<?php if( is_array( $post_terms ) ) : ?>
+					<?php foreach( $post_terms as $term ) : ?>
+						<p><?=$term->taxonomy . ' : ' . $term->name ?></p>
+					<?php endforeach; ?>
+				<?php endif; ?>
+			</div>
+			<?php
+		}
+	}
+
+	wp_die();
+}
+
+add_action( 'wp_ajax_loadmore', 'loadmore_callback' );
+add_action( 'wp_ajax_nopriv_loadmore', 'loadmore_callback' );
+
+function c4b_load_more_shortcode( $atts ){
+	$atts = shortcode_atts(
+		array(
+			'load_type' => 'button',
+		),
+		$atts
+	);
+
+	switch ( $atts['load_type'] ){
+		case 'scroll' :
+			$load_type = 'scroll';
+			break;
+		case 'button' :
+			$load_type = 'button';
+			break;
+		default :
+			$load_type = 'button';
+	}
+
+	$paged = get_query_var( 'paged' ) ? get_query_var( 'paged' ) : 1;
+	$max_pages = $GLOBALS['wp_query']->max_num_pages;
+
+	ob_start();
+	?>
+
+    <div class="loadmore" id="loadmore" data-max_pages="<?=$max_pages ?>" data-paged="<?=$paged ?>" data-load_type="<?=$load_type ?>">
+        <?php if( $load_type == 'button' && $paged < $max_pages ) : ?>
+            <div>
+                <a href="#" class="btn">Load more</a>
+            </div>
+        <?php endif; ?>
+    </div>
+
+	<?php
+	return ob_get_clean();
+}
+
+add_shortcode( 'load_more', 'c4b_load_more_shortcode' );
 
 // http://cooking4beginners/dishes/?difficulty%5B%5D=simple

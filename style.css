@@ -25,7 +25,8 @@ body {
 }
 
 .post {
-    width: 30%;
+    width: 100%;
+    min-height: 1250px;
     padding: 0 15px 10px;
     border: 1px solid #000;
 }
