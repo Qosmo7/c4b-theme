@@ -1,7 +1,8 @@
 jQuery(document).ready(function($){
-    let selector = '.posts-wrap'
-    if( $('form').data('selector') !== undefined ){
-        selector = $('form').data('selector')
+    let config = $('.filter').data('config')
+
+    if( ! config.wrapper ){
+        config.wrapper = '.posts-wrap'
     }
 
     jQuery( 'body' ).on('submit', '.form', function(e){
@@ -18,7 +19,7 @@ jQuery(document).ready(function($){
             contentType: false,
             processData: false,
             success: function(res){
-                $(selector).html(res)
+                $(config.wrapper).html(res)
             }
         })
 
@@ -28,9 +29,8 @@ jQuery(document).ready(function($){
     // Adding / Removing get parameters from url
 
     let checkbox_values = []
-    let tax_name = $('input[name="tax_name"]').val()
-    $('.difficulty-form__checkbox').click(function(){
-        $('.difficulty-form__checkbox').each(function(){
+    $('.filtering-form__checkbox').click(function(){
+        $('.filtering-form__checkbox').each(function(){
             if( $(this).prop('checked') && $.inArray( $(this).val(), checkbox_values ) == -1 ){
                 checkbox_values.push( $(this).val() )
             }
@@ -45,7 +45,7 @@ jQuery(document).ready(function($){
         let currentURL = window.location.protocol + '//' + window.location.host + window.location.pathname
 
         if( checkbox_values.length > 0 ){
-            currentURL = currentURL + '?' + tax_name + '%5B%5D=' + checkbox_values.join(',')
+            currentURL = currentURL + '?' + config.taxonomy + '%5B%5D=' + checkbox_values.join(',')
         }
 
         window.history.pushState({ path: currentURL }, '', currentURL)
@@ -54,10 +54,10 @@ jQuery(document).ready(function($){
     // Infinite scroll
 
     if( $( '#loadmore' ) !== undefined ){
-        let paged = $( '#loadmore' ).data( 'paged' ),
-        maxPages = $( '#loadmore' ).data( 'max_pages' )
+        let paged = config.paged,
+        maxPages = config.max_pages
 
-        if( $( '#loadmore' ).data( 'load_type' ) == 'button' ){
+        if( config.load_type == 'button' ){
             let $loadmoreBtn = $( '#loadmore a' )
 
             $loadmoreBtn.click( function( event ){
@@ -76,7 +76,7 @@ jQuery(document).ready(function($){
                     },
                     success : function( data ){
                         paged++
-                        $(selector).append( data )
+                        $(config.wrapper).append( data )
                         $loadmoreBtn.text( 'Load more' )
         
                         if( paged == maxPages ){
@@ -102,10 +102,9 @@ jQuery(document).ready(function($){
                             $('body').addClass('loading');
                         },
                         success : function(data){
-                            console.log(data)
                             if(data){
                                 paged++
-                                $(selector).append( data )
+                                $(config.wrapper).append( data )
                                 $('body').removeClass('loading')
                             }
                         }

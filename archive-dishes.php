@@ -2,7 +2,7 @@
 get_header();
 
 echo do_shortcode( '[taxonomies_links post_type="dishes" taxonomy="type"]' );
-echo do_shortcode( '[taxonomies_filter post_type="dishes" taxonomy="difficulty" selector=".posts-wrap"]' );
+echo do_shortcode( '[taxonomies_filter post_type="dishes" taxonomy="difficulty" wrapper=".posts-wrap" load_type="scroll"]' );
 
 if ( have_posts() ) { ?> 
     <div class="posts-wrap" id="posts">
@@ -33,7 +33,11 @@ if ( have_posts() ) { ?>
         } ?>
     </div>
 
-    <?php echo do_shortcode( '[load_more load_type="scroll"]' ); ?>
+    <div class="loadmore" id="loadmore">
+        <div>
+            <a href="#" class="btn">Load more</a>
+        </div>
+    </div>
 
 <?php } else {
 	echo '<p>Empty :(</p>';

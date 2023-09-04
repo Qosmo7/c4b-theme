@@ -181,8 +181,9 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 		array(
 			'post_type'       => 'post',
 			'taxonomy'        => '',
-			'selector'        => '',
+			'wrapper'         => '',
 			'number_of_posts' => '',
+			'load_type'       => 'button',
 		),
 		$atts
 	);
@@ -200,12 +201,24 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 		);
 	}
 
+	if( $atts['load_type'] !== 'scroll' ){
+		$atts['load_type'] = 'button';
+	}
+
+	$config = array();
+	foreach( $atts as $key => $value ){
+		$config[$key] = $key == 'wrapper' ? htmlspecialchars( $value ) : $value;
+	}
+
+	$config['paged'] = get_query_var( 'paged' ) ? get_query_var( 'paged' ) : 1;
+	$config['max_pages'] = $GLOBALS['wp_query']->max_num_pages;
+
 	ob_start();
 
 	?> 
-	<div class="filter">
+	<div class="filter" data-config='<?=json_encode( $config ); ?>'>
 		<div class="filter__col">
-			<form class="form filtering-form" method="get" <?php if( ! empty( $atts['selector'] ) ){ echo 'data-selector="' . htmlspecialchars( $atts['selector'] ) . '"'; } ?>>
+			<form class="form filtering-form" method="get">
 				<fieldset class="filtering-form__fieldset">
 					<b><?=$taxonomy ?></b> :
 					<?php foreach( $taxonomy_terms as $term ) : ?>
@@ -222,11 +235,6 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 							<?=$term->name ?>
 						</label>
 					<?php endforeach; ?>
-
-					<input type="hidden" name="tax_name" value="<?=$taxonomy ?>">
-					<?php if( ! empty( $atts['number_of_posts'] ) ) : ?>
-						<input type="hidden" name="number_of_posts" value="<?=$atts['number_of_posts'] ?>">
-					<?php endif; ?>
 				</fieldset>
 				<button type="submit">Go</button>
 			</form>
@@ -373,44 +381,5 @@ function loadmore_callback(){
 
 add_action( 'wp_ajax_loadmore', 'loadmore_callback' );
 add_action( 'wp_ajax_nopriv_loadmore', 'loadmore_callback' );
-
-function c4b_load_more_shortcode( $atts ){
-	$atts = shortcode_atts(
-		array(
-			'load_type' => 'button',
-		),
-		$atts
-	);
-
-	switch ( $atts['load_type'] ){
-		case 'scroll' :
-			$load_type = 'scroll';
-			break;
-		case 'button' :
-			$load_type = 'button';
-			break;
-		default :
-			$load_type = 'button';
-	}
-
-	$paged = get_query_var( 'paged' ) ? get_query_var( 'paged' ) : 1;
-	$max_pages = $GLOBALS['wp_query']->max_num_pages;
-
-	ob_start();
-	?>
-
-    <div class="loadmore" id="loadmore" data-max_pages="<?=$max_pages ?>" data-paged="<?=$paged ?>" data-load_type="<?=$load_type ?>">
-        <?php if( $load_type == 'button' && $paged < $max_pages ) : ?>
-            <div>
-                <a href="#" class="btn">Load more</a>
-            </div>
-        <?php endif; ?>
-    </div>
-
-	<?php
-	return ob_get_clean();
-}
-
-add_shortcode( 'load_more', 'c4b_load_more_shortcode' );
 
 // http://cooking4beginners/dishes/?difficulty%5B%5D=simple
