@@ -1,16 +1,25 @@
 jQuery(document).ready(function($){
     let config = $('.filter').data('config')
+    let currentQueryVars = c4b_localize_data.query_vars
 
-    if( ! config.wrapper ){
+    let paged = config.paged
+    let maxPages = config.max_pages
+
+    if(paged == maxPages){
+        $(config.loadmore_selector).hide()
+    }
+
+    if(!config.wrapper){
         config.wrapper = '.posts-wrap'
     }
 
-    jQuery( 'body' ).on('submit', '.form', function(e){
+    jQuery('body').on('submit', '.form', function(e){
         e.preventDefault()
 
-        let fd = new FormData( $(this)[0] )
-        fd.append( 'action', 'c4b_filtering' )
-        fd.append( 'query_vars', c4b_localize_data.query_vars )
+        let fd = new FormData($(this)[0])
+        fd.append('action', 'c4b_filtering')
+        fd.append('query_vars', c4b_localize_data.query_vars)
+        fd.append('config', JSON.stringify(config))
     
         jQuery.ajax({
             url: c4b_localize_data.url,
@@ -19,48 +28,73 @@ jQuery(document).ready(function($){
             contentType: false,
             processData: false,
             success: function(res){
-                $(config.wrapper).html(res)
+                $(config.wrapper).html(res.html)
+
+                currentQueryVars = res.query_vars
+
+                paged = config.paged
+
+                if(config.loadmore_selector !== ''){
+                    if(res.paged == res.max_pages){
+                        $(config.loadmore_selector).hide()
+                    }else{
+                        $(config.loadmore_selector).css('display','inline')
+                    }
+                }
             }
         })
 
         return false
     })
 
-    // Adding / Removing get parameters from url
+    let values = {}
+    let taxonomies = config.taxonomies.split(',')
 
-    let checkbox_values = []
+    taxonomies.forEach(function(item){
+        values[item] = []
+    })
+
     $('.filtering-form__checkbox').click(function(){
         $('.filtering-form__checkbox').each(function(){
-            if( $(this).prop('checked') && $.inArray( $(this).val(), checkbox_values ) == -1 ){
-                checkbox_values.push( $(this).val() )
+            let currentTax = $(this).prop('name').replace(/\[|\]/g,'')
+            if($(this).prop('checked') && $.inArray($(this).val(), values[currentTax]) == -1){
+                values[currentTax].push($(this).val())
             }
-            if( ! $(this).prop('checked') && $.inArray( $(this).val(), checkbox_values ) > -1 ){
-                let i = checkbox_values.indexOf( $(this).val() )
-                if( i >= 0 ){
-                    checkbox_values.splice(i,1)
+            if(!$(this).prop('checked') && $.inArray($(this).val(), values[currentTax]) > -1){
+                let i = values[currentTax].indexOf($(this).val())
+                if(i >= 0){
+                    values[currentTax].splice(i,1)
                 }
             }
         })
 
         let currentURL = window.location.protocol + '//' + window.location.host + window.location.pathname
 
-        if( checkbox_values.length > 0 ){
-            currentURL = currentURL + '?' + config.taxonomy + '%5B%5D=' + checkbox_values.join(',')
+        let isEmpty = true
+        for(let key in values){
+            if(values[key].length > 0){
+                isEmpty = false
+                break
+            }
+        }
+        if(!isEmpty){
+            let dataParams = {}
+            for(let key in values){
+                if(values[key].length > 0){
+                    dataParams[key + '[]'] = values[key].join(',')
+                }
+            }
+            currentURL = currentURL + '?' + new URLSearchParams(dataParams).toString()
         }
 
         window.history.pushState({ path: currentURL }, '', currentURL)
     })
 
-    // Infinite scroll
+    if($('#loadmore') !== undefined){
+        if(config.loadmore_selector !== ''){
+            let $loadmoreBtn = $(config.loadmore_selector)
 
-    if( $( '#loadmore' ) !== undefined ){
-        let paged = config.paged,
-        maxPages = config.max_pages
-
-        if( config.load_type == 'button' ){
-            let $loadmoreBtn = $( '#loadmore a' )
-
-            $loadmoreBtn.click( function( event ){
+            $loadmoreBtn.click(function(event){
                 event.preventDefault()
         
                 $.ajax({
@@ -69,18 +103,21 @@ jQuery(document).ready(function($){
                     data : {
                         paged: paged,
                         action: 'loadmore',
-                        query_vars: c4b_localize_data.query_vars
+                        query_vars: currentQueryVars//c4b_localize_data.query_vars
                     },
-                    beforeSend : function( xhr ){
-                        $loadmoreBtn.text( 'Loading...' )
+                    beforeSend : function(xhr){
+                        $loadmoreBtn.text('Loading...')
                     },
-                    success : function( data ){
+                    success : function(data){
                         paged++
-                        $(config.wrapper).append( data )
-                        $loadmoreBtn.text( 'Load more' )
+                        $(config.wrapper).append(data.html)
+
+                        //currentQueryVars = data.query_vars
+
+                        $loadmoreBtn.text('Load more')
         
-                        if( paged == maxPages ){
-                            $loadmoreBtn.remove()
+                        if(paged == data.max_pages){
+                            $loadmoreBtn.hide()
                         }
                     }
                 })
@@ -89,22 +126,22 @@ jQuery(document).ready(function($){
             $(window).scroll(function(){
                 let bottomOffset = 2000
         
-                if( $(document).scrollTop() > ( $(document).height() - bottomOffset ) && !$('body').hasClass('loading') ){
+                if($(document).scrollTop() > ($(document).height() - bottomOffset) && !$('body').hasClass('loading')){
                     $.ajax({
                         type : 'POST',
                         url : c4b_localize_data.url,
                         data : {
                             paged : paged,
                             action : 'loadmore',
-                            query_vars: c4b_localize_data.query_vars
+                            query_vars: currentQueryVars//c4b_localize_data.query_vars
                         },
-                        beforeSend : function( xhr ){
+                        beforeSend : function(xhr){
                             $('body').addClass('loading');
                         },
                         success : function(data){
                             if(data){
                                 paged++
-                                $(config.wrapper).append( data )
+                                $(config.wrapper).append(data.html)
                                 $('body').removeClass('loading')
                             }
                         }

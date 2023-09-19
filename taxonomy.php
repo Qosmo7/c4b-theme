@@ -4,7 +4,7 @@ get_header();
 echo term_description();
 
 if ( have_posts() ) { ?>
-    <div class="posts-wrap">
+    <div class="posts-wrap" id="posts">
         <?php while ( have_posts() ) {
             the_post();
             ?>
@@ -19,12 +19,14 @@ if ( have_posts() ) { ?>
 
                 <?php the_content(); ?>
 
+                <?php echo get_post_rating() ? 'Rating : ' . get_post_rating() : null; ?>
+
                 <?php $post_taxonomies = get_post_taxonomies(); ?>
 
                 <?php $post_terms = get_the_terms( $post->ID, $post_taxonomies ); ?>
                 <?php if( is_array( $post_terms ) ) : ?>
                     <?php foreach( $post_terms as $term ) : ?>
-                        <p><?=$term->taxonomy . ' : ' . $term->name ?></p>
+                        <p><?php echo $term->taxonomy . ' : ' . $term->name; ?></p>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>

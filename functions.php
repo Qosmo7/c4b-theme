@@ -5,9 +5,13 @@ add_filter( 'term_description', 'do_shortcode' );
 remove_filter( 'pre_term_description', 'wp_filter_kses' );
 
 add_action( 'after_setup_theme', function(){
+	add_theme_support( 'title-tag' );
 	add_theme_support( 'post-thumbnails' );
 } );
 
+/**
+ * Added main scripts and localize additional data
+ */
 function c4b_scripts() {
 	wp_enqueue_style( 'c4b-style', get_stylesheet_uri() );
 	wp_enqueue_script( 'c4b-script', get_template_directory_uri() . '/js/c4b-script.js' );
@@ -22,6 +26,9 @@ function c4b_scripts() {
 
 add_action( 'wp_enqueue_scripts', 'c4b_scripts' );
 
+/**
+ * Register taxonomies for custom post type
+ */
 function c4b_register_taxonomies(){
 	register_taxonomy( 'type', array( 'dishes' ), array(
 		'hierarchical'  => true,
@@ -58,6 +65,27 @@ function c4b_register_taxonomies(){
 			'add_new_item'      => 'Add new difficulty',
 			'new_item_name'     => 'Add new difficulty name',
 			'menu_name'         => 'Difficulty',
+		),
+		'rewrite'       => false,
+		'has_archive'   => true,
+		'show_ui'       => true,
+		'query_var'     => true,
+	) );
+
+	register_taxonomy( 'ingredients', array( 'dishes' ), array(
+		'hierarchical'  => true,
+		'labels'        => array(
+			'name'              => 'Ingredients',
+			'singular_name'     => 'ingredients',
+			'search_items'      => 'Search ingredients',
+			'all_items'         => 'All ingredients',
+			'parent_item'       => 'Parent ingredients',
+			'parent_item_colon' => 'Parent ingredients:',
+			'edit_item'         => 'Edit ingredients',
+			'update_item'       => 'Update ingredients',
+			'add_new_item'      => 'Add new ingredients',
+			'new_item_name'     => 'Add new ingredients name',
+			'menu_name'         => 'Ingredients',
 		),
 		'rewrite'       => false,
 		'has_archive'   => true,
@@ -110,6 +138,9 @@ function c4b_register_taxonomies(){
 
 add_action( 'init', 'c4b_register_taxonomies' );
 
+/**
+ * Register custom post type
+ */
 function c4b_register_post_types(){
 	register_post_type( 'dishes', array(
 		'label'  => 'Dishes',
@@ -176,24 +207,40 @@ function c4b_register_post_types(){
 
 add_action( 'init', 'c4b_register_post_types' );
 
+/**
+ * Register filter shortcode
+ * @param array<string> $atts Shortcode params
+ * @return string
+ */
 function c4b_taxonomies_filter_shortcode( $atts ){
 	$atts = shortcode_atts(
 		array(
-			'post_type'       => 'post',
-			'taxonomy'        => '',
-			'wrapper'         => '',
-			'number_of_posts' => '',
-			'load_type'       => 'button',
+			'post_type'         => 'post',
+			'taxonomies'        => '',
+			'meta_fields'       => '',
+			'wrapper'           => '',
+			'number_of_posts'   => '',
+			'loadmore_selector' => '',
 		),
 		$atts
 	);
 
-	if( empty( $atts['taxonomy'] ) || ! taxonomy_exists( $atts['taxonomy'] ) ){
-		return 'Taxonomy is incorrect';
-	} else {
-		$taxonomy = $atts['taxonomy'];
+	if( empty( $atts['taxonomies'] ) ){
+		return 'Taxonomies attribute is empty.';
+	}
 
-		$taxonomy_terms = get_terms(
+	$taxonomies = explode( ',', $atts['taxonomies'] );
+	$meta_fields = explode( ',', $atts['meta_fields'] );
+
+	foreach( $taxonomies as $taxonomy ){
+		if( ! taxonomy_exists( $taxonomy ) ){
+			return 'Taxonomy is incorrect.';
+		}
+	}
+
+	$all_terms = array();
+	foreach( $taxonomies as $taxonomy ){
+		$all_terms[$taxonomy] = get_terms(
 			array(
 				'taxonomy'   => $taxonomy,
 				'hide_empty' => false,
@@ -201,8 +248,8 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 		);
 	}
 
-	if( $atts['load_type'] !== 'scroll' ){
-		$atts['load_type'] = 'button';
+	foreach( $meta_fields as $field ){
+		$meta_values[$field] = get_unique_meta_values( $field );
 	}
 
 	$config = array();
@@ -216,24 +263,39 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 	ob_start();
 
 	?> 
-	<div class="filter" data-config='<?=json_encode( $config ); ?>'>
+	<div class="filter" data-config='<?php echo json_encode( $config ); ?>'>
 		<div class="filter__col">
 			<form class="form filtering-form" method="get">
 				<fieldset class="filtering-form__fieldset">
-					<b><?=$taxonomy ?></b> :
-					<?php foreach( $taxonomy_terms as $term ) : ?>
-						<?php if( ! empty( $_GET[$taxonomy] ) ) :
-							foreach( $_GET[$taxonomy] as $item ) :
-								$is_active = str_contains( $item, $term->slug ) ? true : false;
-								if( $is_active ){
-									break;
-								}
-							endforeach;
-						endif; ?>
-						<label class="filtering-form__label">
-							<input type="checkbox" name="<?=$taxonomy ?>[]" class="filtering-form__checkbox" value="<?=$term->slug ?>" <?php ! empty( $_GET[$taxonomy] ) ? checked( $is_active ) : null ?>>
-							<?=$term->name ?>
-						</label>
+					<?php foreach( $all_terms as $taxonomy => $terms ) : ?>
+						<div class="filtering-form__taxonomy">
+							<b><?php echo ucfirst( $taxonomy ); ?></b> :
+							<?php foreach( $terms as $term ) : ?>
+								<?php if( ! empty( $_GET[$taxonomy] ) ) :
+									foreach( $_GET[$taxonomy] as $item ) :
+										$is_active = str_contains( $item, $term->slug );
+										if( $is_active ){
+											break;
+										}
+									endforeach;
+								endif; ?>
+								<label class="filtering-form__label">
+									<input type="checkbox" name="<?php echo $taxonomy; ?>[]" class="filtering-form__checkbox" value="<?php echo $term->slug; ?>" <?php ! empty( $_GET[$taxonomy] ) ? checked( $is_active ) : null ?>>
+									<?php echo $term->name; ?>
+								</label>
+							<?php endforeach; ?>
+						</div>
+					<?php endforeach; ?>
+					<?php foreach( $meta_values as $key => $values ) : ?>
+						<div class="filtering-form__meta">
+							<b><?php echo ucfirst( $key ); ?></b> :
+							<?php foreach( $values as $value ) : ?>
+								<label class="filtering-form__label">
+									<input type="checkbox" name="<?php echo $key; ?>[]" class="filtering-form__checkbox" value="<?php echo $value; ?>">
+									<?php echo $value; ?>
+								</label>
+							<?php endforeach; ?>
+						</div>
 					<?php endforeach; ?>
 				</fieldset>
 				<button type="submit">Go</button>
@@ -247,6 +309,11 @@ function c4b_taxonomies_filter_shortcode( $atts ){
 
 add_shortcode( 'taxonomies_filter', 'c4b_taxonomies_filter_shortcode' );
 
+/**
+ * Register taxonomies links shortcode
+ * @param array<string> $atts Shortcode params
+ * @return string
+ */
 function c4b_taxonomies_links_shortcode( $atts ){
 	$atts = shortcode_atts(
 		array(
@@ -273,9 +340,9 @@ function c4b_taxonomies_links_shortcode( $atts ){
 
 	?>
 	<div class="taxonomies-links__wrap">
-		<?=$taxonomy . ':' ?>
+		<?php echo $taxonomy . ':'; ?>
 		<?php foreach( $taxonomies_terms as $term ) : ?>
-			<a href="<?=get_term_link( $term->slug, $term->taxonomy ) ?>" class="taxonomies-links__item"><?=$term->name ?></a>
+			<a href="<?php echo get_term_link( $term->slug, $term->taxonomy ); ?>" class="taxonomies-links__item"><?php echo $term->name; ?></a>
 		<?php endforeach; ?>
 	</div>
 	<?php
@@ -285,24 +352,50 @@ function c4b_taxonomies_links_shortcode( $atts ){
 
 add_shortcode( 'taxonomies_links', 'c4b_taxonomies_links_shortcode' );
 
+/**
+ * Ajax filtering callback
+ */
 function c4b_filtering_callback(){
 	$query_vars = json_decode( stripcslashes( $_POST['query_vars'] ), true );
+	$config = json_decode( stripslashes( $_POST['config'] ), true );
 
-	if( ! empty( $_POST[$_POST['tax_name']] ) ){
-		$query_vars['tax_query'] = array(
-			array(
-				'taxonomy' => $_POST['tax_name'],
-				'field'    => 'slug',
-				'terms'    => $_POST[$_POST['tax_name']]
-			)
-		);
+	$taxonomies = array();
+	foreach( explode( ',', $config['taxonomies'] ) as $taxonomy ){
+		if( $_POST[$taxonomy] ){
+			$taxonomies[$taxonomy] = $_POST[$taxonomy];
+		}
 	}
 
-	if( ! empty( $_POST['number_of_posts'] ) ){
-		$query_vars['posts_per_page'] = $_POST['number_of_posts'];
+	if( $taxonomies ){
+		$query_vars['tax_query'] = array();
+
+		foreach( $taxonomies as $taxonomy => $terms ){
+			array_push(
+				$query_vars['tax_query'],
+				array(
+					'taxonomy' => $taxonomy,
+					'field'    => 'slug',
+					'terms'    => $terms
+				)
+			);
+		}
+		if( count( $taxonomies ) > 1 ){
+			array_push(
+				$query_vars['tax_query'],
+				array(
+					'relation'   => 'AND'
+				)
+			);
+		}
+	}
+
+	if( ! empty( $config['number_of_posts'] ) ){
+		$query_vars['posts_per_page'] = $config['number_of_posts'];
 	}
 
 	$query = new WP_Query( $query_vars );
+
+	ob_start();
 
 	if( $query->have_posts() ){
 		while( $query->have_posts() ){
@@ -314,17 +407,19 @@ function c4b_filtering_callback(){
 				</h2>
 
 				<?php if( has_post_thumbnail() ) : ?>
-					<img src="<?= the_post_thumbnail_url() ?>" alt="post image">
+					<img src="<?php echo the_post_thumbnail_url(); ?>" alt="post image">
 				<?php endif; ?>
 
 				<?php the_content(); ?>
+
+				<?php echo get_post_rating() ? 'Rating : ' . get_post_rating() : null; ?>
 
 				<?php $post_taxonomies = get_post_taxonomies(); ?>
 
 				<?php $post_terms = get_the_terms( $post->ID, $post_taxonomies ); ?>
 				<?php if( is_array( $post_terms ) ) : ?>
 					<?php foreach( $post_terms as $term ) : ?>
-						<p><?=$term->taxonomy . ' : ' . $term->name ?></p>
+						<p><?php echo $term->taxonomy . ' : ' . $term->name; ?></p>
 					<?php endforeach; ?>
 				<?php endif; ?>
 			</div>
@@ -332,13 +427,23 @@ function c4b_filtering_callback(){
 		}
 	}
 
-	wp_die();
+	$data = array(
+		'html'       => ob_get_clean(),
+		'query_vars' => wp_json_encode( $query->query_vars ),
+		'paged'      => $query->query_vars['paged'] ? $query->query_vars['paged'] : 1,
+		'max_pages'  => $query->max_num_pages
+	);
+
+	wp_send_json( $data );
 }
 
 add_action( 'wp_ajax_c4b_filtering', 'c4b_filtering_callback' );
 add_action( 'wp_ajax_nopriv_c4b_filtering', 'c4b_filtering_callback' );
 
-function loadmore_callback(){
+/**
+ * Ajax loadmore callback
+ */
+function c4b_loadmore_callback(){
 	$query_vars = json_decode( stripcslashes( $_POST['query_vars'] ), true );
 
 	$paged = ! empty( $_POST['paged'] ) ? $_POST['paged'] : 1;
@@ -348,6 +453,8 @@ function loadmore_callback(){
 
 	$query = new WP_Query( $query_vars );
 
+	ob_start();
+
 	if( $query->have_posts() ){
 		while( $query->have_posts() ){
 			$query->the_post();
@@ -358,17 +465,19 @@ function loadmore_callback(){
 				</h2>
 
 				<?php if( has_post_thumbnail() ) : ?>
-					<img src="<?= the_post_thumbnail_url() ?>" alt="post image">
+					<img src="<?php echo the_post_thumbnail_url(); ?>" alt="post image">
 				<?php endif; ?>
 
 				<?php the_content(); ?>
+
+				<?php echo get_post_rating() ? 'Rating : ' . get_post_rating() : null; ?>
 
 				<?php $post_taxonomies = get_post_taxonomies(); ?>
 
 				<?php $post_terms = get_the_terms( $post->ID, $post_taxonomies ); ?>
 				<?php if( is_array( $post_terms ) ) : ?>
 					<?php foreach( $post_terms as $term ) : ?>
-						<p><?=$term->taxonomy . ' : ' . $term->name ?></p>
+						<p><?php echo $term->taxonomy . ' : ' . $term->name; ?></p>
 					<?php endforeach; ?>
 				<?php endif; ?>
 			</div>
@@ -376,10 +485,108 @@ function loadmore_callback(){
 		}
 	}
 
-	wp_die();
+	$data = array(
+		'html'       => ob_get_clean(),
+		'query_vars' => wp_json_encode( $query->query_vars ),
+		'paged'      => $query->query_vars['paged'] ? $query->query_vars['paged'] : 1,
+		'max_pages'  => $query->max_num_pages
+	);
+
+	wp_send_json( $data );
 }
 
-add_action( 'wp_ajax_loadmore', 'loadmore_callback' );
-add_action( 'wp_ajax_nopriv_loadmore', 'loadmore_callback' );
+add_action( 'wp_ajax_loadmore', 'c4b_loadmore_callback' );
+add_action( 'wp_ajax_nopriv_loadmore', 'c4b_loadmore_callback' );
+
+/**
+ * Added custom metabox
+ */
+function c4b_add_metabox() {
+	add_meta_box(
+		'rating_metabox',
+		'Rating',
+		'c4b_metabox_callback',
+		'dishes',
+		'normal',
+		'default'
+	);
+}
+
+add_action( 'add_meta_boxes', 'c4b_add_metabox' );
+
+/**
+ * Callback for custom metabox
+ * @param object $post Post
+ */
+function c4b_metabox_callback( $post ) {
+	$rating = get_post_meta( $post->ID, 'rating', true );
+
+	echo '<div>
+		<label>Rating <input type="text" id="rating" name="rating" value="' . esc_attr( $rating ) . '" class="rating"></label>
+	</div>';
+}
+
+/**
+ * Save data in custom metabox
+ * @param int $post_id Post id
+ * @param object $post Post
+ * @return int
+ */
+function c4b_save_meta( $post_id, $post ) {
+	$post_type = get_post_type_object( $post->post_type );
+	if ( ! current_user_can( $post_type->cap->edit_post, $post_id ) ) {
+		return $post_id;
+	}
+ 
+	if ( defined('DOING_AUTOSAVE') && DOING_AUTOSAVE ) {
+		return $post_id;
+	}
+ 
+	if( 'dishes' !== $post->post_type ) {
+		return $post_id;
+	}
+ 
+	if( isset( $_POST['rating'] ) ) {
+		update_post_meta( $post_id, 'rating', sanitize_text_field( $_POST['rating'] ) );
+	} else {
+		delete_post_meta( $post_id, 'rating' );
+	}
+ 
+	return $post_id;
+}
+
+add_action( 'save_post', 'c4b_save_meta', 10, 2 );
+
+/**
+ * Get post rating value
+ * @return string
+ */
+function get_post_rating(){
+	return get_post_meta( get_the_ID(), 'rating', true );
+}
+
+/**
+ * Get all unique meta values by key
+ * @param string $key Meta key
+ * @return array
+ */
+function get_unique_meta_values( $key ){
+	global $wpdb;
+
+	$data = $wpdb->get_results(
+		$wpdb->prepare("
+		SELECT * FROM `wp_postmeta`
+		WHERE `meta_key` LIKE %s",
+		$key
+		)
+	);
+
+	$values = array();
+	foreach( $data as $value ){
+		$values[] = $value->meta_value;
+	}
+
+	return array_unique( $values );
+}
 
 // http://cooking4beginners/dishes/?difficulty%5B%5D=simple
